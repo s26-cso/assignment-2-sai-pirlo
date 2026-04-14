@@ -2,7 +2,7 @@
 .globl make_node
 .globl insert
 .globl get
-.globl getAtMost
+.globl getatmost
 
 make_node:
     addi sp, sp, -16     # Allocate 16 bytes on the stack
@@ -82,29 +82,29 @@ get_left:
 get_end:
     ret                  # Return (a0 is either the node pointer or NULL)
 
-getAtMost:
+getatmost:
     li a2, -1            # Initialize best candidate (a2) to -1
 
 gam_loop:
-    beqz a1, getAtMost_end # If current node is NULL, no more nodes; exit loop
+    beqz a1, getatmost_end # If current node is NULL, no more nodes; exit loop
 
     lw t0, 0(a1)         # Load current node's value into t0
 
-    beq t0, a0, getAtMost_equal # If exact match, it's the perfect "at most"
-    bgt t0, a0, getAtMost_left  # If current value is too big, must go left
+    beq t0, a0, getatmost_equal # If exact match, it's the perfect "at most"
+    bgt t0, a0, getatmost_left  # If current value is too big, must go left
 
     mv a2, t0            # Current value is smaller than target; update candidate
     ld a1, 16(a1)        # Move to right child to look for a larger valid value
     j gam_loop           # Repeat loop
 
-getAtMost_left:
+getatmost_left:
     ld a1, 8(a1)         # Move current node pointer to the left child
     j gam_loop           # Repeat loop
 
-getAtMost_equal:
+getatmost_equal:
     mv a0, t0            # Move the matching value into a0 for return
     ret                  # Return immediately
 
-getAtMost_end:
+getatmost_end:
     mv a0, a2            # Move the best candidate found (-1 or value) into a0
     ret                  # Return to the caller
