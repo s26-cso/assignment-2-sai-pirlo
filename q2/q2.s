@@ -5,126 +5,126 @@
 .extern putchar
 
 .data
-fmt: .string "%d "          # Format for elements with a trailing space
-fmt_last: .string "%d"      # Format for the final element (no trailing space)
+fmt: .string "%d "           # Format for integers with a space
+fmt_last: .string "%d"       # Format for the final integer (no space)
 
 .bss
-.balign 8                   # Align memory to 8-byte boundary for 64-bit access
-arr: .space 8000            # Array to store input IQ values (up to 1000)
-res: .space 8000            # Array to store resulting indices
-stack: .space 8000          # Memory used as a stack to find next greater element
+.balign 16                   # Ensure 16-byte alignment for the data section
+arr: .space 80000            # Space for 10,000 IQs (8 bytes each)
+res: .space 80000            # Space for 10,000 result indices
+stack: .space 80000          # Space for 10,000 stack indices
 
 .text
 
 main:
-    addi sp, sp, -48        # Allocate 48 bytes of stack space
-    sd ra, 40(sp)           # Save the return address to the stack
-    sd s0, 32(sp)           # Save s0 (argc) to the stack
-    sd s1, 24(sp)           # Save s1 (argv pointer) to the stack
-    sd s2, 16(sp)           # Save s2 (loop counter) to the stack
-    sd s3, 8(sp)            # Save s3 (array size) to the stack
+    addi sp, sp, -48         # Allocate 48 bytes on the stack
+    sd ra, 40(sp)            # Save return address to stack
+    sd s0, 32(sp)            # Save s0 (argc) to stack
+    sd s1, 24(sp)            # Save s1 (argv pointer) to stack
+    sd s2, 16(sp)            # Save s2 (loop counter/index) to stack
+    sd s3, 8(sp)             # Save s3 (total element count n) to stack
 
-    mv s0, a0               # Move argc into s0
-    mv s1, a1               # Move argv pointer into s1
+    mv s0, a0                # Copy argc into s0
+    mv s1, a1                # Copy argv pointer into s1
 
-    li s2, 1                # Initialize i = 1 (to skip program name in argv[0])
-    li s3, 0                # Initialize array size count = 0
+    li s2, 1                 # Set s2 = 1 to skip the program name in argv[0]
+    li s3, 0                 # Initialize student count n = 0
 
 reading:
-    bge s2, s0, read_completed # If i >= argc, exit the reading loop
-    slli t0, s2, 3          # Multiply index by 8 to get byte offset
-    add t1, s1, t0          # Get the address of argv[i]
-    ld a0, 0(t1)            # Load the string pointer from argv[i]
-    call atoi               # Convert string to integer (IQ value)
-    slli t2, s3, 3          # Multiply count by 8 for array offset
-    la t3, arr              # Load the base address of the IQ array
-    add t4, t3, t2          # Calculate the address for the current element
-    sd a0, 0(t4)            # Store the converted integer into arr[s3]
-    addi s3, s3, 1          # Increment the array size counter
-    addi s2, s2, 1          # Increment the argument counter
-    j reading               # Jump back to read the next argument
+    bge s2, s0, read_completed # If loop index >= argc, we are done reading
+    slli t0, s2, 3           # Calculate offset for argv[s2] (index * 8)
+    add t1, s1, t0           # Get address of the string pointer in argv
+    ld a0, 0(t1)             # Load the string pointer into a0
+    call atoi                # Convert the string to an integer
+    slli t2, s3, 3           # Calculate offset for arr[s3]
+    la t3, arr               # Load base address of our IQ array
+    add t4, t3, t2           # Get address of current array slot
+    sd a0, 0(t4)             # Store the IQ value into the array
+    addi s3, s3, 1           # Increment total student count n
+    addi s2, s2, 1           # Increment argument loop index
+    j reading                # Jump back to read the next student
 
 read_completed:
-    addi t0, s3, -1         # Set t0 to n - 1 (start index from the right)
-    li t1, -1               # Initialize stack top index as -1 (empty)
+    addi t0, s3, -1          # t0 = n - 1 (start index for NGE logic)
+    li t1, -1                # t1 = stack top index (initialize to -1 for empty)
 
 whynot:
-    blt t0, zero, print     # If index < 0, all elements processed; go to print
+    blt t0, zero, print      # If current index < 0, all students processed
 
 while:
-    blt t1, zero, find_nge  # If stack is empty, skip to finding NGE
-    la t2, stack            # Load stack base address
-    slli t3, t1, 3          # Multiply stack top index by 8
-    add t4, t2, t3          # Calculate address of stack[top]
-    ld t5, 0(t4)            # Load the index stored at the stack top
-    la t2, arr              # Load arr base address
-    slli t3, t5, 3          # Multiply index from stack by 8
-    add t4, t2, t3          # Get address of arr[stack_top_index]
-    ld t5, 0(t4)            # Load the IQ value at that index
-    la t2, arr              # Load arr base address again
-    slli t3, t0, 3          # Multiply current index i by 8
-    add t4, t2, t3          # Get address of current IQ value arr[i]
-    ld t6, 0(t4)            # Load the current IQ value
-    blt t6, t5, find_nge    # If current IQ < stack IQ, we found the NGE
-    addi t1, t1, -1         # Else, pop from stack by decrementing top index
-    j while                 # Repeat until stack is empty or NGE is found
+    blt t1, zero, find_nge   # If stack is empty, exit the while loop
+    la t2, stack             # Load base address of the stack
+    slli t3, t1, 3           # Get offset of the stack top element
+    add t4, t2, t3           # Get address of stack[top]
+    ld t5, 0(t4)             # Load the index stored at the stack top
+    la t2, arr               # Load base address of IQ array
+    slli t3, t5, 3           # Get offset of the IQ at the stack top's index
+    add t4, t2, t3           # Get address of arr[stack.top()]
+    ld t5, 0(t4)             # t5 = IQ of the student on the stack top
+    la t2, arr               # Load base address of IQ array
+    slli t3, t0, 3           # Get offset of the current student's IQ
+    add t4, t2, t3           # Get address of arr[current_index]
+    ld t6, 0(t4)             # t6 = IQ of the current student
+    blt t6, t5, find_nge     # If current IQ < stack IQ, stack top is the NGE
+    addi t1, t1, -1          # Else, pop stack (top index decrement)
+    j while                  # Repeat loop
 
 find_nge:
-    la t2, res              # Load base address of results array
-    slli t3, t0, 3          # Calculate offset for current index
-    add t4, t2, t3          # Get address of res[i]
-    blt t1, zero, set_neg   # If stack is empty, no greater element exists
-    la t2, stack            # Load stack base address
-    slli t3, t1, 3          # Calculate offset for stack top
-    add t5, t2, t3          # Get address of stack[top]
-    ld t6, 0(t5)            # Load the index of the NGE from the stack
-    sd t6, 0(t4)            # Store that index in the result array
-    j push_stack            # Jump to push the current index to the stack
+    la t2, res               # Load base address of result array
+    slli t3, t0, 3           # Calculate offset for res[current_index]
+    add t4, t2, t3           # Get address of res[current_index]
+    blt t1, zero, set_neg    # If stack is empty, no greater element found
+    la t2, stack             # Load base address of the stack
+    slli t3, t1, 3           # Get offset of the stack top
+    add t5, t2, t3           # Get address of stack[top]
+    ld t6, 0(t5)             # Load the index stored on the stack top
+    sd t6, 0(t4)             # Store that index as the NGE result
+    j push_stack             # Go to push current index onto stack
 
 set_neg:
-    li t5, -1               # Load -1 to represent "no greater element"
-    sd t5, 0(t4)            # Store -1 in the result array
+    li t5, -1                # Load -1 for "no greater element"
+    sd t5, 0(t4)             # Store -1 into the result array
 
 push_stack:
-    addi t1, t1, 1          # Increment stack top index (push operation)
-    la t2, stack            # Load stack base address
-    slli t3, t1, 3          # Calculate offset for new stack top
-    add t4, t2, t3          # Get address for new stack top
-    sd t0, 0(t4)            # Store current index t0 onto the stack
-    addi t0, t0, -1         # Decrement current index (move to the left)
-    j whynot                # Repeat processing for the next element
+    addi t1, t1, 1           # Increment stack top index (push)
+    la t2, stack             # Load base address of stack
+    slli t3, t1, 3           # Get offset for the new stack top
+    add t4, t2, t3           # Get address for new stack top
+    sd t0, 0(t4)             # Store current index t0 on the stack
+    addi t0, t0, -1          # Decrement loop index (move to the left)
+    j whynot                 # Repeat for the next student student
 
 print:
-    li s2, 0                # Initialize output counter i = 0
-    addi s0, s3, -1         # Calculate the index of the last element (n - 1)
+    li s2, 0                 # Initialize printing counter s2 = 0
+    addi s0, s3, -1          # Calculate s0 = n - 1 (the index of the last element)
 
 printing:
-    bge s2, s3, end         # If i >= n, exit the printing loop
-    la t0, res              # Load base address of results array
-    slli t1, s2, 3          # Calculate offset for res[i]
-    add t2, t0, t1          # Get address of res[i]
-    ld a1, 0(t2)            # Load the result value into a1 for printf
-    beq s2, s0, last_val    # If this is the last element, use a different format
-    la a0, fmt              # Load "%d " format string
-    call printf             # Print value followed by space
-    j iter_inc              # Jump to increment loop counter
+    bge s2, s3, end          # If printing counter >= n, we are done
+    la t0, res               # Load base address of result array
+    slli t1, s2, 3           # Get offset for result at current counter
+    add t2, t0, t1           # Get address of res[s2]
+    ld a1, 0(t2)             # Load the result index/value into a1 for printf
+    beq s2, s0, last_val     # If current index is the last element, jump
+    la a0, fmt               # Load format string "%d " (with space)
+    call printf              # Print the integer and the space
+    j iter_inc               # Skip to increment counter
 
 last_val:
-    la a0, fmt_last         # Load "%d" format string (no space)
-    call printf             # Print the final value
+    la a0, fmt_last          # Load format string "%d" (no space)
+    call printf              # Print the final integer
 
 iter_inc:
-    addi s2, s2, 1          # Increment the loop counter i
-    j printing              # Repeat for the next element
+    addi s2, s2, 1           # Increment the printing counter
+    j printing               # Repeat for the next result
 
 end:
-    li a0, 10               # Load ASCII value for newline ('\n')
-    call putchar            # Print the newline character
-    li a0, 0                # Set main return value to 0
-    ld ra, 40(sp)           # Restore the return address from the stack
-    ld s0, 32(sp)           # Restore s0 from the stack
-    ld s1, 24(sp)           # Restore s1 from the stack
-    ld s2, 16(sp)           # Restore s2 from the stack
-    ld s3, 8(sp)            # Restore s3 from the stack
-    addi sp, sp, 48         # Deallocate the stack frame
-    ret                     # Return to the operating system
+    li a0, 10                # Load ASCII value for newline '\n'
+    call putchar             # Print the newline character
+    li a0, 0                 # Set main's return value to 0
+    ld ra, 40(sp)            # Restore return address from stack
+    ld s0, 32(sp)            # Restore s0 from stack
+    ld s1, 24(sp)            # Restore s1 from stack
+    ld s2, 16(sp)            # Restore s2 from stack
+    ld s3, 8(sp)             # Restore s3 from stack
+    addi sp, sp, 48          # Deallocate the stack frame
+    ret                      # Return to the OS
