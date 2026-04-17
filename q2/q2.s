@@ -23,8 +23,10 @@ main:
     sd s1, 24(sp)           # Save s1 (argv pointer) to the stack
     sd s2, 16(sp)           # Save s2 (loop counter) to the stack
     sd s3, 8(sp)            # Save s3 (array size) to the stack
+
     mv s0, a0               # Move argc into s0
     mv s1, a1               # Move argv pointer into s1
+
     li s2, 1                # Initialize i = 1 (to skip program name in argv[0])
     li s3, 0                # Initialize array size count = 0
 
